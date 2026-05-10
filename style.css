@@ -98,6 +98,30 @@ body {
 .user-tab-wrap:hover .user-tab-close { opacity: 1; }
 .user-tab-close:hover { color: var(--danger); background: #fee2e2; opacity: 1; }
 
+/* 미니 추가 메뉴 (카드 / 핀) */
+.add-menu {
+  position: fixed; z-index: 600;
+  background: white; border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.15);
+  min-width: 160px;
+  font-family: inherit;
+  animation: addmenu-pop 0.12s ease-out;
+}
+@keyframes addmenu-pop {
+  from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.add-menu button {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; background: transparent; border: none;
+  padding: 9px 12px; border-radius: 6px;
+  font-size: 13px; color: var(--text); cursor: pointer;
+  font-family: inherit; text-align: left;
+}
+.add-menu button:hover { background: var(--chip-bg); color: var(--primary); }
+.add-menu button .emo { font-size: 16px; }
+
 /* 📌 바로가기 (PWA install) 버튼 */
 .install-btn {
   background: linear-gradient(135deg, #2563eb, #0ea5e9);

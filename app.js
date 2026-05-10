@@ -9,8 +9,9 @@ const CONFIG = {
   SCOPES:    'https://www.googleapis.com/auth/spreadsheets'
 };
 
-const VERSION = 'v1.0';
+const VERSION = 'v1.1';
 const UPDATE_HISTORY = [
+  ['v1.1', '2026-05-10', '모든 탭에 카드+핀 둘 다 추가 가능 (빈 곳 더블클릭 → 카드/핀 미니 메뉴) · PWA 설치 버튼 + × 탭 닫기'],
   ['v1.0', '2026-05-10', '편집모드+메모모드 통합 / 화살표 클릭=삭제 / 사용자 탭 추가 가능 / 기본 캔버스 탭 숨김'],
   ['v0.9', '2026-05-10', '카드 색상 변경(팔레트 + 커스텀) · 다중 선택(드래그/Shift+클릭) + 자동 정렬(가로/세로/격자)'],
   ['v0.8', '2026-05-10', '결정/체크리스트/연락처/메모 전부 캔버스 통일. 편집 모드 + 카드 A→B 화살표 연결. 가격 시뮬레이터 잠시 숨김'],
@@ -653,14 +654,32 @@ let memoMode = false;
 let pendingPinPos = null;
 
 function renderPins() {
-  const layer = $('pin-layer');
+  // 한눈에
+  renderPinsIn($('pin-layer'), v => v === 'flow' || v === 'home');
+  // 모든 사용자 탭
+  getUserTabs().forEach(t => {
+    const tabKey = 'user_' + t[0];
+    const sec = $(`tab-${tabKey}`);
+    if (!sec) return;
+    let layer = sec.querySelector('.pin-layer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pin-layer';
+      const canvas = sec.querySelector('.canvas');
+      if (canvas) canvas.appendChild(layer);
+    }
+    renderPinsIn(layer, v => v === tabKey);
+  });
+}
+
+function renderPinsIn(layer, typeMatch) {
   if (!layer) return;
   const memos = rows('메모');
   layer.innerHTML = memos.map((r, idx) => {
     const x = parseFloat(r[5]);
     const y = parseFloat(r[6]);
     const type = r[7] || '';
-    if (type !== 'flow' || isNaN(x) || isNaN(y)) return '';
+    if (!typeMatch(type) || isNaN(x) || isNaN(y)) return '';
     const title = r[2] || '(무제)';
     const tag = r[4] || '';
     const bodyTip = (r[3] || '').slice(0, 200);
@@ -679,15 +698,14 @@ function toggleMemoMode() { toggleEditMode(); }
 function toggleDeleteMode() { toggleEditMode(); }
 
 function canvasDoubleClick(e) {
-  if (!editMode) return;
+  if (!editMode) { toast('편집 모드를 켜주세요', 'info'); return; }
   if (e.target.closest('.pin')) return;
   if (e.target.closest('.node')) return;
   const canvas = $('canvas');
   const r = canvas.getBoundingClientRect();
-  const x = ((e.clientX - r.left) / r.width * 100).toFixed(2);
-  const y = ((e.clientY - r.top) / r.height * 100).toFixed(2);
-  pendingPinPos = { x, y };
-  openNewMemoModal();
+  const xPct = ((e.clientX - r.left) / r.width * 100).toFixed(2);
+  const yPct = ((e.clientY - r.top) / r.height * 100).toFixed(2);
+  showAddMenu(e.clientX, e.clientY, 'home', xPct, yPct);
 }
 
 function openNewMemoModal() {
@@ -706,9 +724,10 @@ async function confirmNewMemo() {
   if (!title) { $('new-memo-title').focus(); return; }
   const body = $('new-memo-body').value.trim();
   const tag = $('new-memo-tag').value.trim();
-  const pos = pendingPinPos;  // 흐름도 핀이면 좌표 있음, 일반 메모면 null
+  const pos = pendingPinPos;
+  const pinType = pos ? (pos.type || 'home') : '';
   const row = [nowISO(), userEmail || '', title, body, tag,
-    pos ? pos.x : '', pos ? pos.y : '', pos ? 'flow' : ''];
+    pos ? pos.x : '', pos ? pos.y : '', pinType];
   data['메모'].push(row);
   closeNewMemoModal();
   renderPins(); renderMemos(); renderStatus();
@@ -1930,14 +1949,19 @@ async function onUserCardDragEnd(e) {
 
 async function userCanvasDblClick(tabId, e) {
   if (e.target.closest('.node')) return;
+  if (e.target.closest('.pin')) return;
   if (!editMode) { toast('편집 모드를 켜주세요', 'info'); return; }
   const tabKey = 'user_' + tabId;
   const container = $(`canvas-${tabKey}`);
   const cr = container.getBoundingClientRect();
-  const x = ((e.clientX - cr.left) / cr.width * 100).toFixed(2);
-  const y = ((e.clientY - cr.top) / cr.height * 100).toFixed(2);
+  const xPct = ((e.clientX - cr.left) / cr.width * 100).toFixed(2);
+  const yPct = ((e.clientY - cr.top) / cr.height * 100).toFixed(2);
+  showAddMenu(e.clientX, e.clientY, tabKey, xPct, yPct);
+}
+
+async function addUserCardAt(tabId, xPct, yPct) {
   const id = 'CARD' + Date.now().toString().slice(-7);
-  const newRow = [id, tabId, '', '', '', x, y, '#94a3b8'];
+  const newRow = [id, tabId, '', '', '', xPct, yPct, '#94a3b8'];
   data['카드'].push(newRow);
   renderUserCanvas(tabId);
   const newRowNum = data['카드'].length;
@@ -1949,6 +1973,63 @@ async function userCanvasDblClick(tabId, e) {
     renderUserCanvas(tabId);
     toast('카드 추가 실패: ' + err.message, 'err');
   }
+}
+
+async function addHomeCardAt(xPct, yPct) {
+  const id = 'NODE' + Date.now().toString().slice(-6);
+  const newRow = [id, '새 카드', '기타', '홀딩', '', '', '', '', xPct, yPct, '#94a3b8'];
+  data['공급사'].push(newRow);
+  renderDiagram();
+  const newRowNum = data['공급사'].length;
+  try {
+    await sheetsAppend('공급사!A1', [newRow]);
+    openNodeModal(newRowNum);
+  } catch (err) {
+    data['공급사'].pop();
+    renderDiagram();
+    toast('카드 추가 실패: ' + err.message, 'err');
+  }
+}
+
+/* 미니 메뉴: 카드 / 핀 선택 (모든 탭 공통) */
+let addMenuEl = null;
+function showAddMenu(clientX, clientY, tabKey, xPct, yPct) {
+  if (addMenuEl) addMenuEl.remove();
+  const m = document.createElement('div');
+  m.className = 'add-menu';
+  m.style.left = Math.min(clientX, window.innerWidth - 180) + 'px';
+  m.style.top  = Math.min(clientY, window.innerHeight - 90) + 'px';
+  m.innerHTML = `
+    <button data-act="card"><span class="emo">📦</span> <span>카드 추가</span></button>
+    <button data-act="pin"><span class="emo">📌</span> <span>메모 핀 추가</span></button>
+  `;
+  m.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    m.remove(); addMenuEl = null;
+    if (act === 'card') {
+      if (tabKey === 'home') addHomeCardAt(xPct, yPct);
+      else if (tabKey.startsWith('user_')) addUserCardAt(tabKey.replace('user_',''), xPct, yPct);
+    } else if (act === 'pin') {
+      pendingPinPos = { x: xPct, y: yPct, type: tabKey };
+      openNewMemoModal();
+    }
+  });
+  document.body.appendChild(m);
+  addMenuEl = m;
+  setTimeout(() => {
+    document.addEventListener('mousedown', closeAddMenu, { once: true, capture: true });
+  }, 50);
+}
+function closeAddMenu(e) {
+  if (!addMenuEl) return;
+  if (addMenuEl.contains(e.target)) {
+    document.addEventListener('mousedown', closeAddMenu, { once: true, capture: true });
+    return;
+  }
+  addMenuEl.remove();
+  addMenuEl = null;
 }
 
 function userCanvasMouseDown(e, tabKey) {
