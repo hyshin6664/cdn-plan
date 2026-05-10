@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDN 리셀러 사업 기획</title>
+<link rel="stylesheet" href="style.css?v=10">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_FORCE_RELOAD') location.reload();
+    });
+  }
+</script>
+</head>
+<body>
+
+<header class="hdr">
+  <h1 id="title" title="구글시트 열기">CDN 리셀러 사업 기획</h1>
+  <div class="hdr-r">
+    <span id="userBox" class="user"></span>
+    <button id="editModeBtn" class="btn-soft" onclick="toggleEditMode()">편집 모드</button>
+    <button id="verBtn" class="btn-soft">v1.0</button>
+    <button id="signinBtn" class="btn-soft" style="display:none">Google 로그인</button>
+    <button id="signoutBtn" class="btn-soft" style="display:none">로그아웃</button>
+    <button id="refreshBtn" class="btn-soft" title="새로고침">↻</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabsNav">
+  <button data-tab="home" class="active">한눈에</button>
+  <span id="userTabsContainer" style="display:contents"></span>
+  <button id="addTabBtn" class="add-tab-btn" onclick="openNewTabModal()" title="새 탭 추가">＋</button>
+</nav>
+
+<main id="main">
+  <section id="loginNotice" class="notice" style="display:none">
+    <div class="notice-box">
+      <div class="hero">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h2>Google 로그인 필요</h2>
+      <p>이 시트에 공유된 계정으로 로그인하셔야 데이터가 보여요.</p>
+      <button class="btn" style="margin-top:16px" onclick="signIn()">Google 로그인</button>
+    </div>
+  </section>
+
+  <section id="setupNotice" class="notice" style="display:none">
+    <div class="notice-box"><h2>초기 설정 필요</h2><p>app.js의 CONFIG 입력</p></div>
+  </section>
+
+  <section id="loader" class="loader" style="display:none">
+    <svg width="48" height="12" viewBox="0 0 48 12">
+      <circle cx="6" cy="6" r="4" fill="#3b82f6"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></circle>
+      <circle cx="24" cy="6" r="4" fill="#3b82f6"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" begin="0.4s" repeatCount="indefinite"/></circle>
+      <circle cx="42" cy="6" r="4" fill="#3b82f6"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" begin="0.8s" repeatCount="indefinite"/></circle>
+    </svg>
+    <div>데이터 불러오는 중...</div>
+  </section>
+
+  <!-- 한눈에 (인터랙티브 흐름도) -->
+  <section id="tab-home" class="tab-pane home-full" style="display:none">
+    <div class="home-toolbar">
+      <div class="hint" id="home-hint">도형 드래그·클릭 / 편집 모드 ON 시 빈 곳 더블클릭 = 핀 메모, 화살표 클릭 = 삭제</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-soft" onclick="resetLayout()" title="기본 위치로">⟲</button>
+      </div>
+    </div>
+    <div id="canvas" class="canvas" ondblclick="canvasDoubleClick(event)">
+      <svg id="arrow-svg" class="arrow-svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+          </marker>
+        </defs>
+      </svg>
+      <div id="node-layer" class="node-layer"></div>
+      <div id="pin-layer" class="pin-layer"></div>
+    </div>
+  </section>
+
+  <!-- 현황 -->
+  <section id="tab-status" class="tab-pane" style="display:none">
+    <div class="cards">
+      <div class="stat"><div class="lbl">공급사</div><div class="num" id="cnt-suppliers">-</div></div>
+      <div class="stat"><div class="lbl">결정사항</div><div class="num" id="cnt-decisions">-</div></div>
+      <div class="stat"><div class="lbl">체크리스트</div><div class="num" id="cnt-checklist">-</div></div>
+      <div class="stat"><div class="lbl">메모</div><div class="num" id="cnt-memos">-</div></div>
+    </div>
+    <div class="diagram-card"><h3>단계별 진행</h3><div id="stage-flow" class="stage-flow"></div></div>
+    <div class="row">
+      <div class="card"><h3>다음 결정사항</h3><ul id="pending-decisions" class="next-list"></ul></div>
+      <div class="card"><h3>다음 할 일</h3><ul id="pending-checklist" class="next-list"></ul></div>
+      <div class="card"><h3>최근 메모</h3><ul id="recent-memos" class="next-list"></ul></div>
+    </div>
+  </section>
+
+  <section id="tab-decisions" class="tab-pane home-full" style="display:none">
+    <div class="home-toolbar canvas-toolbar">
+      <div class="hint">결정사항 카드. 편집 모드 ON 시 드래그·추가·연결 가능</div>
+      <div style="display:flex;gap:6px"></div>
+    </div>
+    <div class="canvas" data-tab-key="decisions" id="canvas-decisions" ondblclick="canvasEmptyDblClick('decisions', event)" onmousedown="canvasMouseDown(event, 'decisions')">
+      <svg class="arrow-svg"></svg>
+      <div class="node-layer"></div>
+    </div>
+  </section>
+
+  <section id="tab-checklist" class="tab-pane home-full" style="display:none">
+    <div class="home-toolbar canvas-toolbar">
+      <div class="hint">체크리스트 카드. 카드 클릭 = 상세, 더블클릭 = 완료 토글</div>
+      <div style="display:flex;gap:6px"></div>
+    </div>
+    <div class="canvas" data-tab-key="checklist" id="canvas-checklist" ondblclick="canvasEmptyDblClick('checklist', event)" onmousedown="canvasMouseDown(event, 'checklist')">
+      <svg class="arrow-svg"></svg>
+      <div class="node-layer"></div>
+    </div>
+  </section>
+
+  <section id="tab-contacts" class="tab-pane home-full" style="display:none">
+    <div class="home-toolbar canvas-toolbar">
+      <div class="hint">연락처 카드. 클릭 = 상세 / 편집 모드 ON 시 추가·이동</div>
+      <div style="display:flex;gap:6px"></div>
+    </div>
+    <div class="canvas" data-tab-key="contacts" id="canvas-contacts" ondblclick="canvasEmptyDblClick('contacts', event)" onmousedown="canvasMouseDown(event, 'contacts')">
+      <svg class="arrow-svg"></svg>
+      <div class="node-layer"></div>
+    </div>
+  </section>
+
+  <section id="tab-memos" class="tab-pane home-full" style="display:none">
+    <div class="home-toolbar canvas-toolbar">
+      <div class="hint">메모 카드. 편집 모드 ON 시 빈 곳 더블클릭으로 추가</div>
+      <div style="display:flex;gap:6px"></div>
+    </div>
+    <div class="canvas" data-tab-key="memos" id="canvas-memos" ondblclick="canvasEmptyDblClick('memos', event)" onmousedown="canvasMouseDown(event, 'memos')">
+      <svg class="arrow-svg"></svg>
+      <div class="node-layer"></div>
+    </div>
+  </section>
+
+  <section id="tab-pricing" class="tab-pane" style="display:none;display:none!important">
+    <div class="toolbar">
+      <h2>가격 시뮬레이터</h2>
+      <div><button class="btn-soft" onclick="addPriceRow()">+ 항목</button> <button class="btn" onclick="savePricing()">시트 저장</button></div>
+    </div>
+    <div class="card" style="margin-bottom:16px"><div class="pricing-grid" id="pricing-fields"></div></div>
+    <div class="cards">
+      <div class="stat"><div class="lbl">소매 단가 (원/GB)</div><div class="num" id="r-retail">-</div></div>
+      <div class="stat"><div class="lbl">총 트래픽 (GB/월)</div><div class="num" id="r-total-gb">-</div></div>
+      <div class="stat"><div class="lbl">월 매출 (원)</div><div class="num" id="r-revenue">-</div></div>
+      <div class="stat"><div class="lbl">월 매입 (원)</div><div class="num" id="r-cogs">-</div></div>
+      <div class="stat"><div class="lbl">월 순이익 (원)</div><div class="num" id="r-profit">-</div></div>
+      <div class="stat"><div class="lbl">BEP 고객수</div><div class="num" id="r-bep">-</div></div>
+    </div>
+  </section>
+</main>
+
+<!-- 새 탭 만들기 모달 -->
+<div id="newTabModal" class="modal" style="display:none" onclick="if(event.target===this)closeNewTabModal()">
+  <div class="modal-box" style="max-width:380px">
+    <h3 style="margin:0 0 14px">새 탭 추가</h3>
+    <div class="field">
+      <label>탭 이름</label>
+      <input id="new-tab-name" placeholder="예: 회의록, 아이디어, 작업">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn-soft" onclick="closeNewTabModal()">취소</button>
+      <button class="btn" onclick="confirmNewTab()">만들기</button>
+    </div>
+  </div>
+</div>
+
+<div id="alignBar" class="align-bar" style="display:none">
+  <span class="hint"><b class="count">0</b>개 선택됨</span>
+  <button class="btn-soft" onclick="alignSelected('h')" title="가로 한 줄">━ 가로</button>
+  <button class="btn-soft" onclick="alignSelected('v')" title="세로 한 줄">▌세로</button>
+  <button class="btn-soft" onclick="alignSelected('grid')" title="격자 자동">▦ 격자</button>
+  <button class="btn-soft" onclick="clearSelection()">취소</button>
+</div>
+
+<footer class="ftr">CDN &amp; Cloud is by Solbox..</footer>
+
+<!-- 노드 상세 팝업 (공급사 정보 편집) -->
+<div id="nodeModal" class="modal" style="display:none" onclick="if(event.target===this)closeNodeModal()">
+  <div class="modal-box" style="width:480px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span id="node-color-dot" class="node-color-dot"></span>
+      <h3 id="node-modal-title" style="margin:0;flex:1">노드 상세</h3>
+      <button onclick="closeNodeModal()" class="pin-x">×</button>
+    </div>
+    <div class="field"><label>이름</label><input id="node-f-name"></div>
+    <div class="field row-flex" style="gap:10px">
+      <div style="flex:1"><label>층</label><input id="node-f-layer"></div>
+      <div style="flex:1">
+        <label>상태</label>
+        <select id="node-f-status">
+          <option value="홀딩">홀딩</option>
+          <option value="진행예정">진행예정</option>
+          <option value="진행중">진행중</option>
+          <option value="완료">완료</option>
+        </select>
+      </div>
+    </div>
+    <div class="field row-flex" style="gap:10px">
+      <div style="flex:1"><label>단가</label><input id="node-f-price"></div>
+      <div style="flex:1"><label>담당자</label><input id="node-f-manager"></div>
+    </div>
+    <div class="field"><label>연락처</label><input id="node-f-contact"></div>
+    <div class="field"><label>메모</label><textarea id="node-f-info" rows="3"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn-soft" onclick="closeNodeModal()">취소</button>
+      <button class="btn" onclick="saveNodeModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 새 메모 모달 -->
+<div id="newMemoModal" class="modal" style="display:none" onclick="if(event.target===this)closeNewMemoModal()">
+  <div class="modal-box memo-modal">
+    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <span class="pin-icon-large"></span><span>새 메모</span>
+    </h3>
+    <div class="field"><label>제목 <span style="color:#dc2626">*</span></label><input id="new-memo-title"></div>
+    <div class="field"><label>내용</label><textarea id="new-memo-body" rows="4"></textarea></div>
+    <div class="field"><label>태그</label><input id="new-memo-tag"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn-soft" onclick="closeNewMemoModal()">취소</button>
+      <button class="btn" onclick="confirmNewMemo()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="pinPopover" class="pin-popover" style="display:none">
+  <div class="pin-pop-head">
+    <div id="pin-pop-title-view" class="pin-pop-title-view"></div>
+    <button onclick="closePinPopover()" class="pin-x">×</button>
+  </div>
+  <div id="pin-pop-body-view" class="pin-pop-body-view"></div>
+  <div class="pin-pop-foot">
+    <span id="pin-pop-meta" class="hint"></span>
+    <div>
+      <button class="btn-soft" onclick="deletePinFromPopover()">삭제</button>
+      <button class="btn" onclick="editPinFromPopover()">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- 메모 편집 모달 (수정 시 사용) -->
+<div id="editMemoModal" class="modal" style="display:none" onclick="if(event.target===this)closeEditMemoModal()">
+  <div class="modal-box memo-modal">
+    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <span class="pin-icon-large"></span><span>메모 수정</span>
+    </h3>
+    <div class="field"><label>제목 <span style="color:#dc2626">*</span></label><input id="edit-memo-title"></div>
+    <div class="field"><label>내용</label><textarea id="edit-memo-body" rows="4"></textarea></div>
+    <div class="field"><label>태그</label><input id="edit-memo-tag"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn-soft" onclick="closeEditMemoModal()">취소</button>
+      <button class="btn" onclick="confirmEditMemo()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div id="verModal" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <h3>업데이트 히스토리</h3>
+    <ul id="ver-list"></ul>
+    <button class="btn-soft" onclick="document.getElementById('verModal').style.display='none'">닫기</button>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="app.js?v=10"></script>
+</body>
+</html>

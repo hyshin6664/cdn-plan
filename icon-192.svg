@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="32" fill="#2563eb"/>
+  <!-- 노드 (3개 카드) -->
+  <rect x="22" y="58" width="38" height="48" rx="6" fill="#ffffff"/>
+  <rect x="22" y="58" width="38" height="6" rx="3" fill="#64748b"/>
+  <rect x="78" y="76" width="38" height="48" rx="6" fill="#ffffff"/>
+  <rect x="78" y="76" width="38" height="6" rx="3" fill="#f59e0b"/>
+  <rect x="134" y="58" width="38" height="48" rx="6" fill="#ffffff"/>
+  <rect x="134" y="58" width="38" height="6" rx="3" fill="#16a34a"/>
+  <!-- 화살표 -->
+  <line x1="60" y1="82" x2="78" y2="98" stroke="#ffffff" stroke-width="2"/>
+  <line x1="116" y1="98" x2="134" y2="82" stroke="#ffffff" stroke-width="2"/>
+  <!-- 핀 -->
+  <circle cx="44" cy="44" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="155" cy="140" r="7" fill="#0ea5e9" stroke="#ffffff" stroke-width="2"/>
+</svg>
