@@ -107,7 +107,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('signinBtn').onclick = signIn;
   $('signoutBtn').onclick = signOut;
 
-  document.querySelectorAll('.tabs button').forEach(b => {
+  document.querySelectorAll('.tabs button[data-tab]').forEach(b => {
     b.onclick = () => switchTab(b.dataset.tab);
   });
 
