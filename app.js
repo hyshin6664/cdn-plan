@@ -1634,11 +1634,16 @@ function renderUserTabs() {
   if (!cont) return;
   const userTabs = getUserTabs();
   cont.innerHTML = userTabs.map(t =>
-    `<button data-tab="user_${esc(t[0])}" data-user-tab-id="${esc(t[0])}" oncontextmenu="userTabContextMenu(event, '${esc(t[0])}'); return false;">${esc(t[1] || '(이름 없음)')}</button>`
+    `<span class="user-tab-wrap">
+      <button data-tab="user_${esc(t[0])}" data-user-tab-id="${esc(t[0])}" ondblclick="renameUserTab('${esc(t[0])}')" title="더블클릭 = 이름 변경">${esc(t[1] || '(이름 없음)')}</button>
+      <button class="user-tab-close" data-user-tab-id="${esc(t[0])}" title="탭 삭제">×</button>
+    </span>`
   ).join('');
-  // attach click
-  cont.querySelectorAll('button').forEach(b => {
+  cont.querySelectorAll('button[data-tab]').forEach(b => {
     b.onclick = () => switchTab(b.dataset.tab);
+  });
+  cont.querySelectorAll('.user-tab-close').forEach(b => {
+    b.onclick = (e) => { e.stopPropagation(); deleteUserTab(b.dataset.userTabId); };
   });
 
   // ensure tab-pane exists for each

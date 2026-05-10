@@ -76,6 +76,28 @@ body {
 }
 .add-tab-btn:hover { color: var(--primary) !important; background: var(--chip-bg); border-radius: 6px; }
 
+/* 사용자 탭 = 본 버튼 + × 버튼 묶음 */
+.user-tab-wrap {
+  display: inline-flex; align-items: center;
+  border-radius: 0;
+  position: relative;
+}
+.user-tab-wrap > button[data-tab] { padding-right: 6px !important; }
+.user-tab-close {
+  background: transparent; border: none;
+  color: var(--text-light); cursor: pointer;
+  padding: 0 6px; margin-right: 4px;
+  font-size: 16px; line-height: 1;
+  border-radius: 4px;
+  opacity: 0.4;
+  transition: opacity .15s, color .15s, background .15s;
+  font-family: inherit;
+  height: 22px;
+  align-self: center;
+}
+.user-tab-wrap:hover .user-tab-close { opacity: 1; }
+.user-tab-close:hover { color: var(--danger); background: #fee2e2; opacity: 1; }
+
 /* 메인 */
 main { padding: 24px 28px 60px; max-width: 1400px; margin: 0 auto; }
 
