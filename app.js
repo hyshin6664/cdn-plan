@@ -1613,6 +1613,74 @@ async function deleteCardModal(modal) {
   }
 }
 
+/* PWA 설치 버튼 (hwpx-editor 패턴) */
+(function setupInstall() {
+  function init() {
+    const installBtn = document.getElementById('installBtn');
+    if (!installBtn) return;
+    let deferred = null;
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                        || window.navigator.standalone === true;
+    if (isStandalone) { installBtn.hidden = true; return; }
+    const isMobileLike = isIOS || /Android|Mobi/.test(ua) || window.innerWidth <= 720;
+    installBtn.textContent = isMobileLike ? '📌 홈 화면에 추가' : '📌 바탕화면에 추가';
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferred = e;
+      installBtn.hidden = false;
+    });
+    window.addEventListener('appinstalled', () => { installBtn.hidden = true; deferred = null; });
+    installBtn.hidden = false;
+    installBtn.addEventListener('click', async () => {
+      if (deferred) {
+        try {
+          deferred.prompt();
+          const choice = await deferred.userChoice;
+          if (choice && choice.outcome === 'accepted') installBtn.hidden = true;
+        } catch (e) {}
+        deferred = null;
+        return;
+      }
+      const isAndroid = /Android/.test(ua);
+      showInstallGuide(isIOS ? 'ios' : isAndroid ? 'android' : 'pc');
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+function showInstallGuide(kind) {
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  const iosHTML = `
+    <p><b>아이폰·아이패드 (Safari)</b><br>
+    ① 화면 아래 <b>공유 버튼</b> ⬆️<br>
+    ② <b>"홈 화면에 추가"</b><br>
+    ③ <b>"추가"</b></p>`;
+  const androidHTML = `
+    <p><b>안드로이드 (크롬)</b><br>
+    ① 우상단 <b>⋮ 점 3개</b><br>
+    ② <b>"홈 화면에 추가"</b> 또는 <b>"앱 설치"</b></p>`;
+  const pcHTML = `
+    <p><b>크롬·엣지·웨일</b> · 주소창 오른쪽 <b>⊕ 설치 아이콘</b> 클릭<br>
+    또는 <b>⋮ 메뉴 → "CDN 기획 설치"</b></p>
+    <p><b>Mac (Safari)</b> · 메뉴 [파일] → [Dock에 추가]</p>`;
+  const inner = kind === 'ios' ? iosHTML : kind === 'android' ? androidHTML : pcHTML;
+  wrap.innerHTML = `<div class="modal-box" style="max-width:440px">
+    <h3 style="margin:0 0 12px">📌 바로가기 만들기</h3>
+    ${inner}
+    <p class="hint">바탕화면 / 홈 화면에서 한 번에 열립니다.</p>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button class="btn">확인</button>
+    </div></div>`;
+  wrap.addEventListener('click', e => {
+    if (e.target === wrap || e.target.tagName === 'BUTTON') wrap.remove();
+  });
+  document.body.appendChild(wrap);
+}
+
 window.addEventListener('keydown', e => {
   if (e.key === 'Escape' && linkSourceId) {
     linkSourceId = null;

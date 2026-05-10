@@ -98,6 +98,27 @@ body {
 .user-tab-wrap:hover .user-tab-close { opacity: 1; }
 .user-tab-close:hover { color: var(--danger); background: #fee2e2; opacity: 1; }
 
+/* 📌 바로가기 (PWA install) 버튼 */
+.install-btn {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  border: 0; border-radius: 999px;
+  padding: 6px 14px; color: white;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+  animation: install-pulse 2.4s ease-in-out infinite;
+  white-space: nowrap; flex-shrink: 0; line-height: 1;
+  font-family: inherit;
+}
+.install-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,.35); }
+.install-btn:active { transform: translateY(0); }
+@keyframes install-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(37,99,235,.25); }
+  50%      { box-shadow: 0 2px 14px rgba(14,165,233,.55); }
+}
+@media (max-width: 600px) {
+  .install-btn { padding: 5px 10px; font-size: 11px; }
+}
+
 /* 메인 */
 main { padding: 24px 28px 60px; max-width: 1400px; margin: 0 auto; }
 
