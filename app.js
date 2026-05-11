@@ -51,9 +51,11 @@ function toast(msg, type = 'info') {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 250); }, 2400);
 }
 function myConfirm(msg, opts = {}) {
+  // 기존 confirm 모달이 있으면 닫음 (스택 방지)
+  document.querySelectorAll('.modal.confirm-modal').forEach(x => x.remove());
   return new Promise(res => {
     const m = document.createElement('div');
-    m.className = 'modal';
+    m.className = 'modal confirm-modal';
     m.innerHTML = `<div class="modal-box" style="max-width:380px">
       <p style="margin:0 0 18px;font-size:14px;line-height:1.5">${esc(msg)}</p>
       <div style="display:flex;gap:8px;justify-content:flex-end">
