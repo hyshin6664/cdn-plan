@@ -557,6 +557,16 @@ label { display: block; font-size: 12px; color: var(--text-mute); margin-bottom:
   pointer-events: none;
   z-index: 1;
 }
+.canvas svg.arrow-svg .user-arrow,
+.canvas svg.arrow-svg .home-arrow {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.canvas svg.arrow-svg .user-arrow:hover + line,
+.canvas svg.arrow-svg .home-arrow:hover + line {
+  stroke: #dc2626 !important;
+  stroke-width: 2.5 !important;
+}
 .node-layer {
   position: absolute; inset: 0;
   pointer-events: none;
