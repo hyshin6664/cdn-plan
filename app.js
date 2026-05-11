@@ -234,8 +234,8 @@ function showOnly(which) {
 }
 function showTabs() {
   ['loginNotice','setupNotice','loader'].forEach(id => $(id).style.display = 'none');
-  const active = document.querySelector('.tabs button.active').dataset.tab;
-  showOnlyTab(active);
+  const activeBtn = document.querySelector('.tabs button.active[data-tab]');
+  if (activeBtn) showOnlyTab(activeBtn.dataset.tab);
 }
 function switchTab(name) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
