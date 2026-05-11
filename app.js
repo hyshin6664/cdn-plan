@@ -9,8 +9,9 @@ const CONFIG = {
   SCOPES:    'https://www.googleapis.com/auth/spreadsheets'
 };
 
-const VERSION = 'v1.1';
+const VERSION = 'v1.2';
 const UPDATE_HISTORY = [
+  ['v1.2', '2026-05-11', '3개 Case 시나리오 자동 생성(Case1 SKT단독 / Case2 다중텔코 / Case3 올리브텍영업) + 한눈에 탭 숨김'],
   ['v1.1', '2026-05-10', '모든 탭에 카드+핀 둘 다 추가 가능 (빈 곳 더블클릭 → 카드/핀 미니 메뉴) · PWA 설치 버튼 + × 탭 닫기'],
   ['v1.0', '2026-05-10', '편집모드+메모모드 통합 / 화살표 클릭=삭제 / 사용자 탭 추가 가능 / 기본 캔버스 탭 숨김'],
   ['v0.9', '2026-05-10', '카드 색상 변경(팔레트 + 커스텀) · 다중 선택(드래그/Shift+클릭) + 자동 정렬(가로/세로/격자)'],
@@ -244,7 +245,10 @@ function switchTab(name) {
   else if (name === 'status') renderStatus();
   else if (name && name.startsWith('user_')) {
     const tabId = name.replace('user_', '');
-    requestAnimationFrame(() => renderUserCanvas(tabId));
+    // requestAnimationFrame + setTimeout 두 번 — 캔버스 사이즈 확정 후 렌더
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => renderUserCanvas(tabId));
+    });
   }
 }
 function showOnlyTab(name) {
@@ -1732,6 +1736,20 @@ function renderUserTabs() {
   cont.querySelectorAll('.user-tab-close').forEach(b => {
     b.onclick = (e) => { e.stopPropagation(); deleteUserTab(b.dataset.userTabId); };
   });
+  // 한눈에 nav 버튼이 없으면 첫 번째 user 탭을 활성화
+  if (!document.querySelector('.tabs button[data-tab="home"]') && userTabs.length > 0) {
+    const active = document.querySelector('.tabs button.active');
+    const homeVisible = $('tab-home') && getComputedStyle($('tab-home')).display !== 'none';
+    if (!active || active.id === 'addTabBtn' || homeVisible) {
+      const firstId = userTabs[0][0];
+      setTimeout(() => {
+        switchTab('user_' + firstId);
+        setTimeout(() => { renderUserCanvas(firstId); }, 100);
+      }, 100);
+    }
+  }
+  // 모든 사용자 탭 캔버스 한번씩 그려두기 (전환 시 즉시 보이게)
+  setTimeout(() => userTabs.forEach(t => { try { renderUserCanvas(t[0]); } catch(_){} }), 200);
 
   // ensure tab-pane exists for each
   const main = $('main');
@@ -1793,6 +1811,13 @@ function renderUserCanvas(tabId) {
   const tabKey = 'user_' + tabId;
   const container = $(`canvas-${tabKey}`);
   if (!container) return;
+  // pin-layer 보장
+  let pinLayer = container.querySelector('.pin-layer');
+  if (!pinLayer) {
+    pinLayer = document.createElement('div');
+    pinLayer.className = 'pin-layer';
+    container.appendChild(pinLayer);
+  }
   const layer = container.querySelector('.node-layer');
   const all = rows('카드');
   const indexedRows = all.map((r, i) => ({ r, idx: i+2 })).filter(x => x.r[1] === tabId);
@@ -1815,7 +1840,10 @@ function renderUserCanvas(tabId) {
       </div>
     </div>`;
   }).join('');
-  requestAnimationFrame(() => renderUserTabArrows(tabKey));
+  // 핀
+  renderPinsIn(pinLayer, v => v === tabKey);
+  // 화살표 (layout 완료 보장)
+  setTimeout(() => renderUserTabArrows(tabKey), 50);
 }
 
 function renderUserTabArrows(tabKey) {
@@ -1829,7 +1857,11 @@ function renderTabArrowsGeneric(tabKey) {
   const svg = container.querySelector('.arrow-svg');
   if (!svg) return;
   const cw = container.offsetWidth, ch = container.offsetHeight;
-  if (!cw || !ch) return;
+  if (!cw || !ch) {
+    // 캔버스 사이즈 0 → 잠시 후 재시도
+    setTimeout(() => renderTabArrowsGeneric(tabKey), 100);
+    return;
+  }
   svg.setAttribute('width', cw);
   svg.setAttribute('height', ch);
   svg.setAttribute('viewBox', `0 0 ${cw} ${ch}`);
