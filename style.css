@@ -98,6 +98,28 @@ body {
 .user-tab-wrap:hover .user-tab-close { opacity: 1; }
 .user-tab-close:hover { color: var(--danger); background: #fee2e2; opacity: 1; }
 
+/* 화살표 편집 팝오버 */
+.arrow-popover {
+  position: fixed; z-index: 600;
+  background: white; border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.18);
+  width: 260px;
+  font-family: inherit;
+}
+.arrow-popover .ap-row { margin-bottom: 10px; }
+.arrow-popover label { display: block; font-size: 11px; color: var(--text-mute); margin-bottom: 4px; }
+.arrow-popover input { font-size: 13px; padding: 6px 8px; }
+.arrow-popover .ap-colors { display: flex; gap: 5px; flex-wrap: wrap; }
+.arrow-popover .ap-sw {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer; padding: 0;
+}
+.arrow-popover .ap-sw:hover { transform: scale(1.15); }
+.arrow-popover .ap-sw.sel { border-color: #0f172a; box-shadow: 0 0 0 2px white inset; }
+.arrow-popover .ap-foot { display: flex; justify-content: space-between; gap: 6px; margin-top: 6px; }
+.arrow-popover .ap-foot button { padding: 5px 12px; font-size: 12px; }
+
 /* 미니 추가 메뉴 (카드 / 핀) */
 .add-menu {
   position: fixed; z-index: 600;

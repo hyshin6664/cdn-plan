@@ -9,8 +9,9 @@ const CONFIG = {
   SCOPES:    'https://www.googleapis.com/auth/spreadsheets'
 };
 
-const VERSION = 'v1.2';
+const VERSION = 'v1.3';
 const UPDATE_HISTORY = [
+  ['v1.3', '2026-05-11', '화살표 색 변경 (팝오버: 색·라벨·삭제) + 도형 위치 정렬 (1차 직판매 노드 1차 바로 아래)'],
   ['v1.2', '2026-05-11', '3개 Case 시나리오 자동 생성(Case1 SKT단독 / Case2 다중텔코 / Case3 올리브텍영업) + 한눈에 탭 숨김'],
   ['v1.1', '2026-05-10', '모든 탭에 카드+핀 둘 다 추가 가능 (빈 곳 더블클릭 → 카드/핀 미니 메뉴) · PWA 설치 버튼 + × 탭 닫기'],
   ['v1.0', '2026-05-10', '편집모드+메모모드 통합 / 화살표 클릭=삭제 / 사용자 탭 추가 가능 / 기본 캔버스 탭 숨김'],
@@ -1362,7 +1363,7 @@ function renderTabArrows(tabKey) {
     nodeMap[el.dataset.id] = { el, bbox: { x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height } };
   });
   const arrows = (rows('화살표') || []).filter(a => a[0] === tabKey);
-  let body = `<defs><marker id="arrow-${tabKey}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker></defs>`;
+  let body = `<defs><marker id="arrow-${tabKey}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>`;
   arrows.forEach(a => {
     const from = nodeMap[a[1]], to = nodeMap[a[2]];
     if (!from || !to) return;
@@ -1875,7 +1876,7 @@ function renderTabArrowsGeneric(tabKey) {
   });
   const arrowsRows = (rows('화살표') || []);
   const arrows = arrowsRows.map((a, i) => ({ a, idx: i+2 })).filter(x => x.a[0] === tabKey);
-  let body = `<defs><marker id="arrow-${tabKey}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker></defs>`;
+  let body = `<defs><marker id="arrow-${tabKey}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>`;
   arrows.forEach(({a, idx}) => {
     const from = nodeMap[a[1]], to = nodeMap[a[2]];
     if (!from || !to) return;
@@ -1883,32 +1884,86 @@ function renderTabArrowsGeneric(tabKey) {
     const tc = { x: to.bbox.x + to.bbox.w/2, y: to.bbox.y + to.bbox.h/2 };
     const fp = edgeIntersection(from.bbox, tc);
     const tp = edgeIntersection(to.bbox, fc);
-    body += `<line class="user-arrow" data-arrow-row="${idx}" x1="${fp.x}" y1="${fp.y}" x2="${tp.x}" y2="${tp.y}" stroke="#94a3b8" stroke-width="14" stroke-linecap="round" stroke-opacity="0" fill="none" style="cursor:pointer"/>`;
-    body += `<line x1="${fp.x}" y1="${fp.y}" x2="${tp.x}" y2="${tp.y}" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrow-${tabKey})" pointer-events="none"/>`;
+    const col = a[4] || '#94a3b8';
+    body += `<line class="user-arrow" data-arrow-row="${idx}" x1="${fp.x}" y1="${fp.y}" x2="${tp.x}" y2="${tp.y}" stroke="${col}" stroke-width="14" stroke-linecap="round" stroke-opacity="0" fill="none" style="cursor:pointer"/>`;
+    body += `<line x1="${fp.x}" y1="${fp.y}" x2="${tp.x}" y2="${tp.y}" stroke="${col}" stroke-width="1.8" fill="none" marker-end="url(#arrow-${tabKey})" pointer-events="none"/>`;
     if (a[3]) {
       const mx = (fp.x + tp.x) / 2, my = (fp.y + tp.y) / 2;
       body += `<text class="arrow-label" x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="middle" pointer-events="none">${esc(a[3])}</text>`;
     }
   });
   svg.innerHTML = body;
-  // 화살표 클릭 → 삭제 (편집 모드)
+  // 화살표 클릭 → 편집 팝오버 (색·라벨·삭제)
   svg.querySelectorAll('.user-arrow').forEach(line => {
-    line.onclick = async (e) => {
+    line.onclick = (e) => {
       e.stopPropagation();
       if (!editMode) return;
       const rowNum = parseInt(line.dataset.arrowRow);
-      const ok = await myConfirm('이 화살표를 삭제할까요?', { okText: '삭제', danger: true });
-      if (!ok) return;
-      const removed = data['화살표'].splice(rowNum - 1, 1)[0];
-      renderTabArrowsGeneric(tabKey);
-      try { await sheetsDeleteRow('화살표', rowNum); }
-      catch (err) {
-        data['화살표'].splice(rowNum - 1, 0, removed);
-        renderTabArrowsGeneric(tabKey);
-        toast('삭제 실패: ' + err.message, 'err');
-      }
+      openArrowPopover(rowNum, e.clientX, e.clientY, () => renderTabArrowsGeneric(tabKey));
     };
   });
+}
+
+const ARROW_COLORS = ['#94a3b8','#0f172a','#2563eb','#0ea5e9','#16a34a','#f59e0b','#dc2626','#a855f7','#ec4899'];
+
+function openArrowPopover(rowNum, cx, cy, rerender) {
+  document.querySelectorAll('.arrow-popover').forEach(p => p.remove());
+  const rec = data['화살표'][rowNum - 1];
+  if (!rec) return;
+  const pop = document.createElement('div');
+  pop.className = 'arrow-popover';
+  pop.style.left = Math.min(cx, window.innerWidth - 280) + 'px';
+  pop.style.top  = Math.min(cy + 12, window.innerHeight - 200) + 'px';
+  pop.innerHTML = `
+    <div class="ap-row"><label>라벨</label><input id="ap-label" value="${esc(rec[3] || '')}" placeholder="(선택)"></div>
+    <div class="ap-row"><label>색상</label>
+      <div class="ap-colors">
+        ${ARROW_COLORS.map(c => `<button class="ap-sw ${c===(rec[4]||'#94a3b8')?'sel':''}" data-c="${c}" style="background:${c}"></button>`).join('')}
+      </div>
+    </div>
+    <div class="ap-foot">
+      <button class="btn-soft ap-del" style="color:#dc2626">삭제</button>
+      <button class="btn-soft ap-close">닫기</button>
+    </div>`;
+  document.body.appendChild(pop);
+
+  const save = async (patch) => {
+    Object.entries(patch).forEach(([k, v]) => { rec[k] = v; });
+    rerender();
+    try { await sheetsUpdate(`화살표!A${rowNum}:E${rowNum}`, [[rec[0]||'', rec[1]||'', rec[2]||'', rec[3]||'', rec[4]||'']]); }
+    catch (e) { toast('저장 실패: '+e.message, 'err'); }
+  };
+
+  pop.querySelector('#ap-label').addEventListener('blur', e => save({3: e.target.value}));
+  pop.querySelectorAll('.ap-sw').forEach(b => {
+    b.onclick = () => {
+      pop.querySelectorAll('.ap-sw').forEach(s => s.classList.remove('sel'));
+      b.classList.add('sel');
+      save({4: b.dataset.c});
+    };
+  });
+  pop.querySelector('.ap-del').onclick = async () => {
+    pop.remove();
+    const removed = data['화살표'].splice(rowNum - 1, 1)[0];
+    rerender();
+    try { await sheetsDeleteRow('화살표', rowNum); }
+    catch (e) {
+      data['화살표'].splice(rowNum - 1, 0, removed);
+      rerender();
+      toast('삭제 실패: '+e.message, 'err');
+    }
+  };
+  pop.querySelector('.ap-close').onclick = () => pop.remove();
+
+  setTimeout(() => {
+    document.addEventListener('mousedown', function close(ev) {
+      if (pop.contains(ev.target)) {
+        document.addEventListener('mousedown', close, { once: true, capture: true });
+        return;
+      }
+      pop.remove();
+    }, { once: true, capture: true });
+  }, 50);
 }
 
 function startUserCardDrag(e, tabId, rowNum, el) {
