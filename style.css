@@ -611,6 +611,8 @@ label { display: block; font-size: 12px; color: var(--text-mute); margin-bottom:
 .node .node-layer-text {
   font-size: 10px; color: var(--text-light);
   text-transform: uppercase; letter-spacing: 0.05em;
+  white-space: pre-line;
+  line-height: 1.35;
 }
 
 /* 상태 태그 (노드 위에 작게) */
